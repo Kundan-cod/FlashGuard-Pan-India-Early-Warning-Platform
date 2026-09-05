@@ -1,0 +1,370 @@
+# =============================================================================
+# DATA SOURCE MASTER REGISTRY  —  SIH 2026 PS 26192
+# Flash Flood Prediction System for Hilly Regions
+# =============================================================================
+#
+# This file is the single source of truth for external data-source metadata.
+#
+# CRITICAL HONESTY RULE (master prompt sections 40, 57, 62):
+#   Fields marked  `verified: false`  contain PLACEHOLDER values that have NOT
+#   been confirmed against official documentation. They MUST NOT be trusted,
+#   quoted to judges, or used to make claims. They exist only so the schema is
+#   complete and collectors have a slot to read from.
+#
+#   External verification is performed by ChatGPT (division of labour,
+#   sections 60-63). When a verified spec arrives:
+#     1. fill the real values,
+#     2. set  verified: true  and add  verified_on: YYYY-MM-DD,
+#     3. set  access_status  to green / yellow / red,
+#     4. implement / enable the collector.
+#
+#   Until then every external field literally reads
+#   "EXTERNAL_VERIFICATION_REQUIRED" so it is impossible to mistake a
+#   placeholder for a real value.
+#
+# access_status:
+#   green  = ChatGPT-verified AND programmatically usable now
+#   yellow = usable but needs registration / manual step / license acceptance
+#   red    = not currently accessible programmatically -> adapter + manual import
+#   unknown= not yet verified (default for every external source)
+#
+# NEVER put credentials in this file. Credentials come from environment
+# variables named in `auth_env_var`; see .env.example.
+# =============================================================================
+
+meta:
+  project: sih26192-flash-flood
+  registry_version: 1
+  last_updated: "2026-09-05"
+  note: >
+    All external sources start unverified. Do not present any field with
+    verified=false as fact. Coordinates/units policy: internal storage is
+    WGS84 (EPSG:4326), rainfall in mm, water level in metres, timestamps in
+    UTC. See docs/data_sources.md for the full master table.
+
+sources:
+
+  gpm:
+    name: NASA GPM IMERG
+    category: satellite
+    variable: precipitation
+    why: "Rainfall intensity, cumulative rainfall, short-term precip features, NRT precip."
+    realtime_class: near_real_time        # structural: satellite => NRT (has latency)
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED   # e.g. 30-min / 3-hr / daily accumulations
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: NASA_EARTHDATA_TOKEN
+    collector: gpm_collector
+    fallback: imd                          # if GPM down, IMD rainfall is candidate fallback
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  imd:
+    name: India Meteorological Department
+    category: government_met
+    variable: weather_rainfall_warnings
+    why: "Current weather, district rainfall, AWS obs, nowcast, forecasts, warnings."
+    realtime_class: real_time
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: IMD_API_KEY
+    collector: imd_collector
+    fallback: gpm
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  smap:
+    name: NASA SMAP
+    category: satellite
+    variable: soil_moisture
+    why: "Surface + root-zone soil moisture, soil saturation features."
+    realtime_class: near_real_time
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: NASA_EARTHDATA_TOKEN
+    collector: smap_collector
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  mosdac:
+    name: ISRO MOSDAC
+    category: satellite
+    variable: insat_met_products
+    why: "INSAT meteorological products, rainfall/cloud products."
+    realtime_class: near_real_time
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: MOSDAC_API_KEY
+    collector: mosdac_collector
+    fallback: gpm
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  bhuvan:
+    name: Bhuvan / NRSC (DEM & terrain)
+    category: terrain_static
+    variable: elevation_terrain
+    why: "DEM (CartoDEM or other), from which slope/aspect/curvature/flow are derived. Preprocess once, store."
+    realtime_class: static
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: static
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: BHUVAN_API_KEY
+    collector: terrain_loader
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  gsi:
+    name: GSI / Bhusanket (landslide)
+    category: geohazard
+    variable: landslide_susceptibility_forecast
+    why: "Landslide inventory, susceptibility, forecast/impact probability, geo-hazard info."
+    realtime_class: static_periodic
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: GSI_API_KEY
+    collector: gsi_collector
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  cwc:
+    name: CWC / NWIC (hydrology)
+    category: government_hydrology
+    variable: river_level_flow_forecast
+    why: "River water level, station obs, inflow/outflow, flood forecasts, historical flood info."
+    realtime_class: real_time
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: CWC_API_KEY
+    collector: cwc_collector
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  ndem:
+    name: NDEM / NRSC (disaster aggregation)
+    category: government_disaster
+    variable: disaster_geospatial_aggregate
+    why: "Disaster-data aggregation platform; historical flood datasets; DM geospatial services."
+    realtime_class: mixed
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: NDEM_API_KEY
+    collector: ndem_collector
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  historical_floods:
+    name: Historical flood datasets (India Flood Inventory / NDEM / satellite-derived)
+    category: historical_labels
+    variable: flood_event_labels
+    why: "Training labels: flood occurred/extent/time/affected area."
+    realtime_class: historical
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: null
+    collector: historical_loader
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  historical_landslides:
+    name: Historical landslide datasets (GSI inventory / ISRO-NRSC Landslide Atlas)
+    category: historical_labels
+    variable: landslide_event_labels
+    why: "Training labels: landslide occurred/date/location/severity."
+    realtime_class: historical
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: null
+    collector: historical_loader
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  admin_boundaries:
+    name: Indian administrative boundaries
+    category: boundaries_static
+    variable: admin_polygons
+    why: "India/state/district/subdistrict/village/ward polygons for spatial joins & drill-down."
+    realtime_class: static
+    official_url: EXTERNAL_VERIFICATION_REQUIRED
+    api_url: EXTERNAL_VERIFICATION_REQUIRED
+    docs_url: EXTERNAL_VERIFICATION_REQUIRED
+    products: EXTERNAL_VERIFICATION_REQUIRED
+    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    temporal_resolution: static
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: EXTERNAL_VERIFICATION_REQUIRED
+    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: EXTERNAL_VERIFICATION_REQUIRED
+    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    auth_env_var: null
+    collector: boundary_loader
+    fallback: null
+    verified: false
+    verified_on: null
+    access_status: unknown
+    enabled: false
+
+  iot:
+    name: IoT sensor network (ESP32)
+    category: iot
+    variable: local_rain_soil_river
+    why: "Optional hyper-local rain gauge / soil moisture / stream level. Enhancement layer, NOT national-coverage requirement."
+    realtime_class: real_time
+    official_url: internal
+    api_url: internal_mqtt_http
+    docs_url: docs/iot_guide.md
+    products: "rainfall_mm, soil_moisture, water_level_m, temperature"
+    spatial_resolution: point
+    temporal_resolution: seconds_to_minutes
+    latency: seconds
+    update_frequency: continuous
+    data_format: json
+    coverage: "wherever a device is physically deployed (demo: simulator)"
+    rate_limits: internal
+    license: internal
+    authentication_required: true
+    auth_env_var: IOT_DEVICE_SHARED_SECRET
+    collector: iot_consumer
+    fallback: null
+    verified: true          # our own component — no external verification needed
+    verified_on: "2026-09-05"
+    access_status: green
+    enabled: true
+    note: "Demo uses a clearly-labelled SIMULATED sensor stream (master prompt sections 30, 67)."
