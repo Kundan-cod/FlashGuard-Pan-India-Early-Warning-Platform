@@ -1,0 +1,14 @@
+{
+  "name": "flashguard-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FlashGuard — Pan-India Flash Flood & Landslide Early Warning System (SIH 2026 PS 26192)",
+  "scripts": {
+    "dev": "npm --prefix frontend/production run dev",
+    "build": "npm --prefix frontend/production run build",
+    "preview": "npm --prefix frontend/production run preview",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f"
+  }
+}

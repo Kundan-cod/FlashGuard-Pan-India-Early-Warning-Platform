@@ -1,0 +1,36 @@
+# =============================================================================
+# Track B — DEFERRED heavy stack (Phase 2). SIH 2026 PS 26192.
+#
+# These are NOT needed to boot or run the Phase 1 demo (seed -> replay -> risk
+# -> API). Nothing in app/ imports them yet. They are the libraries Phase 2 will
+# use to (a) replace the transparent demo scorers with trained, validated models
+# behind the same interface, and (b) preprocess real DEM/terrain rasters and
+# admin-boundary vectors.
+#
+# rasterio + geopandas link against the system GDAL/GEOS/PROJ toolchain and can
+# be slow/brittle to build — which is exactly why they're isolated here and out
+# of the default `docker compose up` path. Install when you start Phase 2:
+#   pip install -r backend/requirements-ml.txt
+# =============================================================================
+
+# --- Numerics / data ---
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+
+# --- ML (swap the demo models for these behind the same interface) ---
+scikit-learn==1.5.0
+xgboost==2.0.3
+lightgbm==4.4.0
+joblib==1.4.2
+
+# --- Geospatial IO (DEM/terrain preprocessing, raster + vector) ---
+shapely==2.0.4
+rasterio==1.3.10
+geopandas==0.14.4
+pyproj==3.6.1
+
+# --- Scientific file IO (NASA GPM IMERG HDF5 granules) ---
+# GPM_3IMERGHHL granules are HDF5; h5py reads Grid/precipitation (mm/hr). Kept in
+# the ML/data layer only (not the minimal default image), same posture as rasterio.
+h5py==3.11.0

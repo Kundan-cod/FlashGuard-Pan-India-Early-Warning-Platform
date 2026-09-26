@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=none
+# =============================================================================
+# Track B production stack — SIH 2026 PS 26192  (user runs locally: Windows + Docker)
+#
+# Same module boundaries as the Track A portable core; only the backing services
+# differ (PostGIS instead of SQLite, real ML libs instead of the stdlib demo).
+#
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# STATUS: skeleton — pending local run. Not executed in the build sandbox
+# (no Docker / no network egress there). Secrets come from an .env file you
+# create from .env.example; none are committed.
+# =============================================================================
+services:
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: flashguard_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flashguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-flashguard}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flashguard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashguard_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: flashguard_backend
+    env_file:
+      - ../.env
+    environment:
+      APP_MODE: ${APP_MODE:-replay}
+      PYTHONPATH: /app:/app/tests:/app/app/data_layer/sources/bhuvan_nrsc:/app/app/data_layer/sources/cwc_nwic:/app/app/data_layer/sources/gsi_bhusanket:/app/app/data_layer/sources/historical:/app/app/data_layer/sources/imd:/app/app/data_layer/sources/lgd:/app/app/data_layer/sources/mosdac:/app/app/data_layer/sources/ndem:/app/app/data_layer/sources/smap
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-flashguard}:${POSTGRES_PASSWORD:-changeme_local_only}@db:5432/${POSTGRES_DB:-flashguard}
+      REDIS_URL: redis://redis:6379/0
+      # Absolute in-image path (Dockerfile copies data/ to /app/data/); avoids
+      # the ambiguous ../data default resolving wrongly from WORKDIR /app.
+      REPLAY_DATASET: /app/data/replay/uttarakhand_flash_flood_event.json
+      ML_ARTIFACT_DIR: /app/ml/artifacts
+      SEED_REPLAY: ${SEED_REPLAY:-1}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # On boot: run migrations, seed synthetic demo, then serve.
+    command: >
+      sh -c "alembic -c alembic.ini upgrade head &&
+             python -m app.services.seed_prod &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build:
+      context: ../frontend/production
+      dockerfile: Dockerfile
+    container_name: flashguard_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE: http://localhost:8000
+      # Vite needs polling to see host file changes through the Docker FS layer
+      # on Windows/WSL2, so HMR fires when you edit src on disk.
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      # Live-mount the source so edits hot-reload without a rebuild. The named
+      # volume keeps the container's own node_modules (don't shadow it with the
+      # host's, which may be empty or built for a different platform).
+      - ../frontend/production:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

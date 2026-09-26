@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FlashGuard — Pan-India Flash Flood & Landslide Early Warning (SIH 26192)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --panel2:#1d2b3a; --ink:#e7eef6; --muted:#8ea3b8;
+    --line:#26374a; --low:#2e9e5b; --mod:#e0b93b; --high:#e3792e; --crit:#e2483d;
+    --accent:#4aa3ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);color:var(--ink)}
+  #app{display:grid;grid-template-columns:340px 1fr 360px;grid-template-rows:auto 1fr;
+    height:100vh;grid-template-areas:"top top top" "left map right"}
+  header{grid-area:top;display:flex;align-items:center;gap:16px;padding:10px 16px;
+    background:linear-gradient(90deg,#0c1420,#122031);border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:11.5px}
+  .mode-badges{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:10.5px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--muted)}
+  .badge.on{color:#fff}
+  .badge.replay.on{background:#5b3d8a;border-color:#7a54b5;color:#fff}
+  .badge.sim.on{background:#8a6d1f;border-color:#b5902a;color:#fff}
+  .badge.demo{background:#5a2b2b;border-color:#8a4040;color:#ffd9d9}
+  aside{overflow-y:auto;padding:12px}
+  aside.left{grid-area:left;background:var(--panel);border-right:1px solid var(--line)}
+  aside.right{grid-area:right;background:var(--panel);border-left:1px solid var(--line)}
+  #map{grid-area:map}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:12px;margin-bottom:12px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+    margin:0 0 10px}
+  .crumbs{display:flex;flex-wrap:wrap;gap:4px;font-size:12px;margin-bottom:6px}
+  .crumbs a{color:var(--accent);cursor:pointer;text-decoration:none}
+  .loc-row{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;
+    border-radius:7px;cursor:pointer;border:1px solid transparent}
+  .loc-row:hover{background:#22384c}
+  .loc-row.sel{border-color:var(--accent);background:#20324a}
+  .pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;color:#0b1118}
+  .pill.LOW{background:var(--low);color:#eafff2}.pill.MODERATE{background:var(--mod)}
+  .pill.HIGH{background:var(--high);color:#fff}.pill.CRITICAL{background:var(--crit);color:#fff}
+  .pill.UNKNOWN{background:#42566b;color:#cfe0f0}
+  .metric{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .metric:last-child{border-bottom:none}
+  .metric .k{color:var(--muted)} .metric .v{font-weight:600}
+  .bigrisk{display:flex;gap:10px;align-items:baseline;margin:4px 0 8px}
+  .bigrisk .lvl{font-size:22px;font-weight:800}
+  .factors li{font-size:12.5px;margin:3px 0;color:#d7e5f3}
+  .conf-bar{height:8px;border-radius:5px;background:#2a3a4c;overflow:hidden;margin-top:4px}
+  .conf-bar>i{display:block;height:100%;background:linear-gradient(90deg,#4aa3ff,#57d38a)}
+  button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:8px 11px;cursor:pointer}
+  button:hover{border-color:var(--accent)} button.primary{background:#1c4c86;border-color:#2f6fbd}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=range]{width:100%}
+  .src{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot.online{background:var(--low)}.dot.delayed{background:var(--mod)}
+  .dot.offline{background:var(--crit)}.dot.unknown{background:#5a6b7d}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px}
+  .alert{border-left:3px solid var(--crit);background:#241a1a;padding:8px 10px;border-radius:6px;
+    font-size:12px;margin-bottom:8px}
+  .disclaimer{font-size:11px;color:#ffd9d9;background:#3a2020;border:1px solid #6a3636;
+    padding:8px 10px;border-radius:8px;margin-top:6px;line-height:1.4}
+  .spark{width:100%;height:46px;display:block}
+  .muted{color:var(--muted)} .small{font-size:11.5px}
+  .tag{font-size:10px;background:#333;padding:1px 6px;border-radius:4px;color:#bcd}
+  #err{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#5a2b2b;
+    color:#ffd9d9;padding:8px 14px;border-radius:8px;font-size:12px;display:none;z-index:9999}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>🌊 FlashGuard</h1>
+      <div class="sub">Pan-India Flash Flood &amp; Landslide Early Warning · SIH 2026 · PS 26192 · NDRF/MHA</div>
+    </div>
+    <div class="mode-badges" id="modeBadges">
+      <span class="badge" id="badgeLive">LIVE</span>
+      <span class="badge" id="badgeNRT">NEAR-REAL-TIME</span>
+      <span class="badge replay" id="badgeReplay">REPLAY</span>
+      <span class="badge sim" id="badgeSim">SIMULATED</span>
+      <span class="badge demo on">DEMO MODEL — not validated</span>
+    </div>
+  </header>
+
+  <aside class="left">
+    <div class="card">
+      <h2>Navigate</h2>
+      <div class="crumbs" id="crumbs"></div>
+      <div id="locList"></div>
+    </div>
+    <div class="card">
+      <h2>Replay control</h2>
+      <div class="small muted" id="replayMeta">Synthetic flash-flood scenario.</div>
+      <input type="range" id="tstep" min="0" max="0" value="0" step="1"/>
+      <div class="row" style="justify-content:space-between">
+        <span class="small" id="tsLabel">—</span>
+        <div class="row">
+          <button id="playBtn">▶ Play</button>
+          <button id="reloadBtn">↻ Rerun</button>
+        </div>
+      </div>
+      <div class="small muted" style="margin-top:6px">
+        Replay streams synthetic data through the same pipeline as live mode.
+      </div>
+    </div>
+    <div class="card">
+      <h2>Risk legend</h2>
+      <div class="legend">
+        <span><i style="background:var(--low)"></i>Low</span>
+        <span><i style="background:var(--mod)"></i>Moderate</span>
+        <span><i style="background:var(--high)"></i>High</span>
+        <span><i style="background:var(--crit)"></i>Critical</span>
+      </div>
+    </div>
+  </aside>
+
+  <div id="map"></div>
+
+  <aside class="right">
+    <div class="card" id="detailCard">
+      <h2>Location detail</h2>
+      <div class="muted small">Select a village on the map or list.</div>
+    </div>
+    <div class="card">
+      <h2>Active alerts</h2>
+      <div id="alerts"><div class="muted small">None.</div></div>
+    </div>
+    <div class="card">
+      <h2>Data source health</h2>
+      <div id="sources"><div class="muted small">Loading…</div></div>
+    </div>
+  </aside>
+</div>
+<div id="err"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const API = (location.hostname ? `http://${location.hostname}:8000` : "http://127.0.0.1:8000");
+const RISK_COLORS={LOW:"#2e9e5b",MODERATE:"#e0b93b",HIGH:"#e3792e",CRITICAL:"#e2483d",UNKNOWN:"#42566b"};
+let map, riskLayer, timesteps=[], curStep=0, playing=false, playTimer=null;
+let selectedId=null, villages=[];
+
+function showErr(m){const e=document.getElementById("err");e.textContent=m;e.style.display="block";
+  clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",5000);}
+async function api(path,opts){
+  try{const r=await fetch(API+path,opts);if(!r.ok)throw new Error(r.status+" "+path);return await r.json();}
+  catch(e){showErr("API: "+e.message+" — is the portable server running on :8000?");throw e;}
+}
+
+function initMap(){
+  map=L.map("map",{zoomControl:true}).setView([30.06,78.06],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom:18,attribution:"© OpenStreetMap"}).addTo(map);
+  riskLayer=L.geoJSON(null,{
+    style:f=>({color:"#0b1118",weight:1,fillColor:RISK_COLORS[f.properties.risk_level]||"#42566b",
+      fillOpacity:.55}),
+    onEachFeature:(f,layer)=>{
+      layer.on("click",()=>selectVillage(f.properties.location_id));
+      layer.bindTooltip(`${f.properties.name}: ${f.properties.risk_level}`,{sticky:true});
+    }
+  }).addTo(map);
+}
+
+async function loadModeBadges(){
+  // In portable demo, mode is replay+simulated; live/NRT off (honest labelling).
+  document.getElementById("badgeReplay").classList.add("on");
+  document.getElementById("badgeSim").classList.add("on");
+}
+
+async function loadSources(){
+  const d=await api("/data-sources/status");
+  const box=document.getElementById("sources");
+  if(!d.sources||!d.sources.length){box.innerHTML='<div class="muted small">No sources reporting.</div>';return;}
+  box.innerHTML=d.sources.map(s=>`<div class="src"><span><span class="dot ${s.status}"></span>${s.source}</span>
+    <span class="small muted">${s.status} · ${s.records_last_run??0} recs</span></div>`).join("");
+}
+
+async function loadRiskMap(){
+  const fc=await api("/risk/map");
+  riskLayer.clearLayers(); riskLayer.addData(fc);
+  try{map.fitBounds(riskLayer.getBounds(),{padding:[30,30]});}catch(e){}
+}
+
+async function loadVillages(){
+  const d=await api("/locations?level=village");
+  villages=d.locations;
+  renderCrumbs(); renderLocList();
+}
+function renderCrumbs(){
+  document.getElementById("crumbs").innerHTML=
+    `<a>India</a> › <a>Uttarakhand</a> › <a>Demo District</a> › <a>Demo Block</a> › <b>villages</b>`;
+}
+function renderLocList(){
+  const box=document.getElementById("locList");
+  box.innerHTML=villages.map(v=>`<div class="loc-row ${v.id===selectedId?'sel':''}" data-id="${v.id}">
+      <span>${v.name}</span><span class="pill UNKNOWN" id="pill-${v.id}">—</span></div>`).join("");
+  box.querySelectorAll(".loc-row").forEach(el=>el.onclick=()=>selectVillage(+el.dataset.id));
+  refreshPills();
+}
+async function refreshPills(){
+  const d=await api("/risk");
+  d.risks.forEach(r=>{const p=document.getElementById("pill-"+r.location_id);
+    if(p){p.textContent=r.risk_level;p.className="pill "+r.risk_level;}});
+}
+
+async function selectVillage(id){
+  selectedId=id;
+  document.querySelectorAll(".loc-row").forEach(el=>
+    el.classList.toggle("sel",+el.dataset.id===id));
+  const r=await api("/risk/"+id);
+  const loc=await api("/locations/"+id);
+  const hist=await api("/predictions/history?location_id="+id);
+  renderDetail(r,loc,hist.history||[]);
+}
+
+function fmtPct(x){return x==null?"—":Math.round(x*100)+"%";}
+function renderDetail(r,loc,hist){
+  const c=document.getElementById("detailCard");
+  if(r.error){c.innerHTML='<h2>Location detail</h2><div class="muted small">No prediction yet.</div>';return;}
+  const t=loc.terrain||{};
+  const lead=(r.lead_time_min_lo!=null)?`~${r.lead_time_min_lo}–${r.lead_time_min_hi} min`:"—";
+  const factors=(r.top_factors||[]).slice(0,5).map(f=>`<li>${f.factor} <span class="muted">(${(+f.contribution).toFixed(2)})</span></li>`).join("");
+  c.innerHTML=`
+    <h2>${loc.name} <span class="tag">${r.is_synthetic?'SYNTHETIC':''}</span></h2>
+    <div class="small muted">${loc.village||loc.name}, ${loc.district}, ${loc.state}</div>
+    <div class="bigrisk"><span class="lvl" style="color:${RISK_COLORS[r.risk_level]}">${r.risk_level}</span>
+      <span class="pill ${r.risk_level}">flood ${fmtPct(r.flood_probability)}</span>
+      <span class="pill ${r.risk_level}">landslide ${fmtPct(r.landslide_probability)}</span></div>
+    <div class="metric"><span class="k">Confidence</span><span class="v">${fmtPct(r.confidence)}</span></div>
+    <div class="conf-bar"><i style="width:${(r.confidence||0)*100}%"></i></div>
+    <div class="metric"><span class="k">Data completeness</span><span class="v">${fmtPct(r.data_completeness)}</span></div>
+    <div class="metric"><span class="k">Est. high-risk window</span><span class="v">${lead}</span></div>
+    <div class="metric"><span class="k">As of</span><span class="v small">${r.ts}</span></div>
+    <div style="margin-top:10px"><b class="small">Why this risk?</b><ul class="factors">${factors}</ul></div>
+    <div style="margin-top:8px"><b class="small">Terrain</b>
+      <div class="metric"><span class="k">Elevation / Slope</span><span class="v">${t.elevation??'—'} m / ${t.slope??'—'}°</span></div>
+    </div>
+    <div style="margin-top:8px"><b class="small">Flood probability over time</b>
+      <svg class="spark" id="spark"></svg></div>
+    <div class="disclaimer">${(r.model_version||'')} · Estimated risk for decision support only —
+      not a guarantee. Official NDRF/SDRF/district instructions take precedence.</div>`;
+  drawSpark(hist);
+}
+function drawSpark(hist){
+  const svg=document.getElementById("spark");if(!svg)return;
+  const data=hist.slice().reverse();
+  if(!data.length){svg.innerHTML='<text x="4" y="24" fill="#8ea3b8" font-size="11">no history</text>';return;}
+  const W=320,H=46,pad=3;
+  const xs=(i)=>pad+i*(W-2*pad)/Math.max(1,data.length-1);
+  const ys=(v)=>H-pad-(v||0)*(H-2*pad);
+  let path=data.map((d,i)=>`${i?'L':'M'}${xs(i).toFixed(1)},${ys(d.flood_probability).toFixed(1)}`).join(" ");
+  let dots=data.map((d,i)=>`<circle cx="${xs(i).toFixed(1)}" cy="${ys(d.flood_probability).toFixed(1)}" r="2"
+     fill="${RISK_COLORS[d.risk_level]}"/>`).join("");
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.innerHTML=`<path d="${path}" fill="none" stroke="#4aa3ff" stroke-width="1.5"/>${dots}`;
+}
+
+async function loadAlerts(){
+  const d=await api("/alerts");
+  const box=document.getElementById("alerts");
+  if(!d.alerts||!d.alerts.length){box.innerHTML='<div class="muted small">None.</div>';return;}
+  const seen=new Set();const uniq=[];
+  for(const a of d.alerts){if(!seen.has(a.location_id+a.severity)){seen.add(a.location_id+a.severity);uniq.push(a);}}
+  box.innerHTML=uniq.slice(0,6).map(a=>`<div class="alert"><b>${a.severity}</b> · ${a.location_name}
+     <div class="small">${a.message}</div></div>`).join("");
+}
+
+// ---- replay stepping ----
+async function loadTimesteps(){
+  // derive timesteps from Devgaon history ordering
+  if(!villages.length)return;
+  const h=await api("/predictions/history?location_id="+villages[0].id);
+  timesteps=[...new Set((h.history||[]).map(x=>x.ts))].sort();
+  const sl=document.getElementById("tstep");
+  sl.max=Math.max(0,timesteps.length-1); sl.value=sl.max; curStep=+sl.max;
+  updateTsLabel();
+}
+function updateTsLabel(){
+  document.getElementById("tsLabel").textContent=timesteps[curStep]||"—";
+}
+async function showStep(i){
+  curStep=i;updateTsLabel();
+  // rebuild map + pills from predictions at this ts
+  const fc=await api("/risk/map"); // map shows latest; for stepped we recolor via history
+  // fetch each village's prediction nearest to timesteps[i]
+  const ts=timesteps[i];
+  const feats=await Promise.all(villages.map(async v=>{
+    const h=await api("/predictions/history?location_id="+v.id);
+    const rec=(h.history||[]).find(x=>x.ts===ts)||(h.history||[])[0];
+    return {id:v.id,rec};
+  }));
+  const byId={};feats.forEach(f=>byId[f.id]=f.rec);
+  riskLayer.eachLayer(l=>{
+    const pid=l.feature.properties.location_id;const rec=byId[pid];
+    const lvl=rec?rec.risk_level:"UNKNOWN";
+    l.setStyle({fillColor:RISK_COLORS[lvl]||"#42566b"});
+    l.feature.properties.risk_level=lvl;
+    l.setTooltipContent(`${l.feature.properties.name}: ${lvl}`);
+    const p=document.getElementById("pill-"+pid);if(p){p.textContent=lvl;p.className="pill "+lvl;}
+  });
+  if(selectedId)selectVillage(selectedId);
+}
+function play(){
+  if(playing){clearInterval(playTimer);playing=false;document.getElementById("playBtn").textContent="▶ Play";return;}
+  playing=true;document.getElementById("playBtn").textContent="⏸ Pause";
+  playTimer=setInterval(()=>{
+    let n=curStep+1;if(n>timesteps.length-1){n=0;}
+    document.getElementById("tstep").value=n;showStep(n);
+    if(n===timesteps.length-1){/*loop*/}
+  },900);
+}
+
+async function rerun(){
+  document.getElementById("reloadBtn").disabled=true;
+  await api("/replay/run",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({reseed:true})});
+  await refreshAll();
+  document.getElementById("reloadBtn").disabled=false;
+}
+
+async function refreshAll(){
+  await loadVillages(); await loadRiskMap(); await loadSources();
+  await loadAlerts(); await loadTimesteps();
+  if(villages.length)selectVillage(villages.find(v=>v.name==="Devgaon")?.id||villages[0].id);
+}
+
+document.getElementById("tstep").addEventListener("input",e=>showStep(+e.target.value));
+document.getElementById("playBtn").addEventListener("click",play);
+document.getElementById("reloadBtn").addEventListener("click",rerun);
+
+(async function(){
+  initMap(); await loadModeBadges();
+  await refreshAll();
+})();
+</script>
+</body>
+</html>

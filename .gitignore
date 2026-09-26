@@ -2,6 +2,11 @@
 .env
 *.env
 !.env.example
+mdapi/config.json
+data/mosdac/*
+!data/mosdac/.gitkeep
+*.h5
+*.part
 
 # --- Python ---
 __pycache__/
@@ -20,10 +25,14 @@ node_modules/
 dist/
 .vite/
 *.local
+*.tsbuildinfo
 
 # --- Data (portable DB + large/generated artifacts) ---
+*.sqlite
+*.sqlite-*
 data/portable/*.sqlite
 data/portable/*.sqlite-*
+backend/data/portable/*.sqlite*
 *.tif
 *.tiff
 gis/raw/*
@@ -39,5 +48,7 @@ ml/artifacts/*.npz
 Thumbs.db
 .idea/
 .vscode/
+.kilo/
+.agents/
 *.swp
 *.log

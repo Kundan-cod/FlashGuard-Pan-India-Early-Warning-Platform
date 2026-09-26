@@ -1,0 +1,38 @@
+# Render Blueprint for FlashGuard Full-Stack Deployment
+# Automatically builds and deploys both Frontend and Backend
+services:
+  # 1. FastAPI Python Backend Service
+  - type: web
+    name: flashguard-backend
+    runtime: docker
+    dockerfilePath: docker/backend.Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: REPLAY_DATASET
+        value: /app/data/replay/uttarakhand_flash_flood_event.json
+
+  # 2. Vite React 3D Frontend Static Site
+  - type: web
+    name: flashguard-frontend
+    runtime: static
+    buildCommand: npm --prefix frontend/production run build
+    staticPublishPath: frontend/production/dist
+    plan: free
+    region: singapore
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE
+        fromService:
+          type: web
+          name: flashguard-backend
+          property: host

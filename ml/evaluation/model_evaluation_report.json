@@ -1,0 +1,532 @@
+{
+  "generated_at": "2026-09-26T09:00:20Z",
+  "pipeline_phase": "Phase C \u2014 FlashGuard AI/ML Prediction System",
+  "honesty_declaration": {
+    "is_demo": true,
+    "status": "NOT VALIDATED",
+    "historical_data_inspection": {
+      "historical_labels_available": false,
+      "catalogs_present": [
+        "NRSC/ISRO Landslide Atlas of India (1998-2022)",
+        "NRSC Flood Hazard Zonation",
+        "Bhuvan Historical Flood Inundation Service",
+        "NDEM Historical Disaster Records"
+      ],
+      "reason": "Verified catalogs are CATALOG-ONLY reference inventories. They record positive event occurrences but lack nationwide confirmed non-event observation coverage. Unobserved locations must not be falsely converted into negative training samples (-1 != 0). Real operational model validation is deferred until exhaustive observational censuses are integrated.",
+      "pipeline_action": "USE_DETERMINISTIC_SIMULATED_DATASET",
+      "model_status": "NOT VALIDATED",
+      "is_demo": true
+    },
+    "scientific_disclaimer": "Both flood and landslide models are trained on deterministic, physically-ordered synthetic datasets to verify end-to-end pipeline integrity, calibration, thresholding, and explainability. They are NOT scientifically validated on real government censuses because official databases (NRSC, Bhuvan, NDEM) currently provide positive event records without exhaustive confirmed negative observation censuses. Real operational deployment requires rigorous real-label validation."
+  },
+  "models": {
+    "flood": {
+      "version": "flood-gbt-de05ad0f076b237e-20260906183021",
+      "hazard": "flood",
+      "operating_threshold": 0.25,
+      "threshold_type": "ML decision threshold (not official government threshold)",
+      "threshold_objective": "F-beta (beta=2.0) with min_specificity>=0.25 on validation set",
+      "calibration": {
+        "a": 0.52964,
+        "b": -0.18765,
+        "is_fitted": true,
+        "method": "platt_sigmoid"
+      },
+      "features_used": [
+        {
+          "critical": true,
+          "hi": 120,
+          "impute_default": 0.0,
+          "label": "Rainfall last 3h",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "rain_3h",
+          "source": "IMD/GPM",
+          "transformation": "identity",
+          "unit": "mm"
+        },
+        {
+          "critical": false,
+          "hi": 300,
+          "impute_default": 0.0,
+          "label": "Rainfall last 24h",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "rain_24h",
+          "source": "IMD/GPM",
+          "transformation": "identity",
+          "unit": "mm"
+        },
+        {
+          "critical": true,
+          "hi": 60,
+          "impute_default": 0.0,
+          "label": "Rainfall intensity (30m)",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "rain_intensity",
+          "source": "IMD/AWS/Radar",
+          "transformation": "identity",
+          "unit": "mm/hr"
+        },
+        {
+          "critical": true,
+          "hi": 1,
+          "impute_default": 0.0,
+          "label": "Soil saturation",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "soil_saturation_index",
+          "source": "SMAP/MOSDAC/In-situ",
+          "transformation": "min_max_0_1",
+          "unit": "fraction"
+        },
+        {
+          "critical": false,
+          "hi": 10,
+          "impute_default": 0.0,
+          "label": "River level",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "river_level",
+          "source": "CWC/IoT Gauge",
+          "transformation": "identity",
+          "unit": "m"
+        },
+        {
+          "critical": false,
+          "hi": 1.5,
+          "impute_default": 0.0,
+          "label": "River rate of rise",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "river_rate_of_rise_1h",
+          "source": "CWC/IoT Gauge",
+          "transformation": "identity",
+          "unit": "m/h"
+        },
+        {
+          "critical": false,
+          "hi": 5000,
+          "impute_default": 0.0,
+          "label": "Upstream flow accumulation",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "flow_accumulation",
+          "source": "CartoDEM/HydroSHEDS",
+          "transformation": "identity",
+          "unit": "cells"
+        },
+        {
+          "critical": false,
+          "hi": 60,
+          "impute_default": 0.0,
+          "label": "Slope (fast runoff)",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "slope",
+          "source": "Bhuvan/SRTM DEM",
+          "transformation": "identity",
+          "unit": "degrees"
+        },
+        {
+          "critical": false,
+          "hi": 1,
+          "impute_default": 0.0,
+          "label": "Historical susceptibility",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "susceptibility",
+          "source": "GSI/NRSC Atlas",
+          "transformation": "min_max_0_1",
+          "unit": "index"
+        }
+      ],
+      "feature_importance": [
+        {
+          "feature": "rain_3h",
+          "importance": 0.1884,
+          "source": "IMD/GPM",
+          "unit": "mm"
+        },
+        {
+          "feature": "river_rate_of_rise_1h",
+          "importance": 0.1641,
+          "source": "CWC/IoT Gauge",
+          "unit": "m/h"
+        },
+        {
+          "feature": "rain_24h",
+          "importance": 0.1471,
+          "source": "IMD/GPM",
+          "unit": "mm"
+        },
+        {
+          "feature": "rain_intensity",
+          "importance": 0.1464,
+          "source": "IMD/AWS/Radar",
+          "unit": "mm/hr"
+        },
+        {
+          "feature": "flow_accumulation",
+          "importance": 0.1238,
+          "source": "CartoDEM/HydroSHEDS",
+          "unit": "cells"
+        },
+        {
+          "feature": "soil_saturation_index",
+          "importance": 0.0701,
+          "source": "SMAP/MOSDAC/In-situ",
+          "unit": "fraction"
+        },
+        {
+          "feature": "river_level",
+          "importance": 0.0593,
+          "source": "CWC/IoT Gauge",
+          "unit": "m"
+        },
+        {
+          "feature": "slope",
+          "importance": 0.0574,
+          "source": "Bhuvan/SRTM DEM",
+          "unit": "degrees"
+        },
+        {
+          "feature": "susceptibility",
+          "importance": 0.0433,
+          "source": "GSI/NRSC Atlas",
+          "unit": "index"
+        }
+      ],
+      "card": {
+        "calibration_summary": {
+          "method": "platt_sigmoid",
+          "test_brier": 0.1943,
+          "test_ece": 0.0819,
+          "val_brier_after": 0.2002,
+          "val_brier_before": 0.2125,
+          "val_ece": 0.0746
+        },
+        "class_balance": 0.44,
+        "config": {
+          "learning_rate": 0.3,
+          "max_depth": 3,
+          "n_estimators": 60,
+          "recall_beta": 2.0,
+          "seed": 42,
+          "use_class_weight": true
+        },
+        "data_source": "SIMULATED",
+        "data_version": "sim-v1",
+        "disclaimer": "Trained on DETERMINISTIC SIMULATED data to demonstrate and prove the AI pipeline architecture. NOT scientifically validated; not trained on verified real government event/non-event censuses. Metrics are held-out on simulated data and describe pipeline generalization only.",
+        "final_train_logloss": 0.2295,
+        "historical_data_inspection": {
+          "catalogs_present": [
+            "NRSC/ISRO Landslide Atlas of India (1998-2022)",
+            "NRSC Flood Hazard Zonation",
+            "Bhuvan Historical Flood Inundation Service",
+            "NDEM Historical Disaster Records"
+          ],
+          "historical_labels_available": false,
+          "is_demo": true,
+          "model_status": "NOT VALIDATED",
+          "pipeline_action": "USE_DETERMINISTIC_SIMULATED_DATASET",
+          "reason": "Verified catalogs are CATALOG-ONLY reference inventories. They record positive event occurrences but lack nationwide confirmed non-event observation coverage. Unobserved locations must not be falsely converted into negative training samples (-1 != 0). Real operational model validation is deferred until exhaustive observational censuses are integrated."
+        },
+        "imbalance_handling": "class_weight_balanced",
+        "is_demo": true,
+        "is_synthetic": true,
+        "model_name": "flood_model",
+        "model_version": "flood-gbt-de05ad0f076b237e-20260906183021",
+        "n_samples": 1200,
+        "n_test": 240,
+        "n_train": 720,
+        "n_val": 240,
+        "split_strategy": "temporal_block_split (Train: 60%, Val: 20%, Test: 20%)",
+        "status": "NOT VALIDATED",
+        "test_metrics": {
+          "accuracy": 0.5458,
+          "auc": 0.763,
+          "brier": 0.1943,
+          "calibration_error": 0.0819,
+          "confusion": {
+            "fn": 4,
+            "fp": 105,
+            "tn": 41,
+            "tp": 90
+          },
+          "f1": 0.6228,
+          "f2": 0.7881,
+          "n": 240,
+          "negatives": 146,
+          "positives": 94,
+          "pr_auc": 0.703,
+          "precision": 0.4615,
+          "recall": 0.9574,
+          "specificity": 0.2808,
+          "threshold": 0.25
+        },
+        "trained_at": "2026-09-06T18:30:21Z",
+        "validated": false,
+        "validation_metrics": {
+          "accuracy": 0.6042,
+          "auc": 0.7549,
+          "brier": 0.2002,
+          "calibration_error": 0.0746,
+          "confusion": {
+            "fn": 8,
+            "fp": 87,
+            "tn": 48,
+            "tp": 97
+          },
+          "f1": 0.6713,
+          "f2": 0.803,
+          "n": 240,
+          "negatives": 135,
+          "positives": 105,
+          "pr_auc": 0.6729,
+          "precision": 0.5272,
+          "recall": 0.9238,
+          "specificity": 0.3556,
+          "threshold": 0.25
+        }
+      }
+    },
+    "landslide": {
+      "version": "landslide-gbt-c7182575b8fb7bc5-20260906183022",
+      "hazard": "landslide",
+      "operating_threshold": 0.4,
+      "threshold_type": "ML decision threshold (not official government threshold)",
+      "threshold_objective": "F-beta (beta=2.0) with min_specificity>=0.25 on validation set",
+      "calibration": {
+        "a": 0.30288,
+        "b": -0.15219,
+        "is_fitted": true,
+        "method": "platt_sigmoid"
+      },
+      "features_used": [
+        {
+          "critical": true,
+          "hi": 60,
+          "impute_default": 0.0,
+          "label": "Slope steepness",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "slope",
+          "source": "Bhuvan/SRTM DEM",
+          "transformation": "identity",
+          "unit": "degrees"
+        },
+        {
+          "critical": false,
+          "hi": 1,
+          "impute_default": 0.0,
+          "label": "Slope curvature",
+          "lo": -1,
+          "missing": "IMPUTE",
+          "name": "curvature",
+          "source": "Bhuvan/SRTM DEM",
+          "transformation": "identity",
+          "unit": "index"
+        },
+        {
+          "critical": true,
+          "hi": 1,
+          "impute_default": 0.0,
+          "label": "GSI-style susceptibility",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "susceptibility",
+          "source": "GSI Landslide Atlas",
+          "transformation": "min_max_0_1",
+          "unit": "index"
+        },
+        {
+          "critical": false,
+          "hi": 1500,
+          "impute_default": 0.0,
+          "label": "Relative relief",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "relative_relief",
+          "source": "Bhuvan/SRTM DEM",
+          "transformation": "identity",
+          "unit": "m"
+        },
+        {
+          "critical": true,
+          "hi": 300,
+          "impute_default": 0.0,
+          "label": "Rainfall last 24h",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "rain_24h",
+          "source": "IMD/GPM",
+          "transformation": "identity",
+          "unit": "mm"
+        },
+        {
+          "critical": false,
+          "hi": 120,
+          "impute_default": 0.0,
+          "label": "Rainfall last 3h",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "rain_3h",
+          "source": "IMD/GPM",
+          "transformation": "identity",
+          "unit": "mm"
+        },
+        {
+          "critical": true,
+          "hi": 1,
+          "impute_default": 0.0,
+          "label": "Soil saturation",
+          "lo": 0,
+          "missing": "IMPUTE",
+          "name": "soil_saturation_index",
+          "source": "SMAP/MOSDAC/In-situ",
+          "transformation": "min_max_0_1",
+          "unit": "fraction"
+        }
+      ],
+      "feature_importance": [
+        {
+          "feature": "slope",
+          "importance": 0.1585,
+          "source": "Bhuvan/SRTM DEM",
+          "unit": "degrees"
+        },
+        {
+          "feature": "curvature",
+          "importance": 0.1581,
+          "source": "Bhuvan/SRTM DEM",
+          "unit": "index"
+        },
+        {
+          "feature": "rain_24h",
+          "importance": 0.1502,
+          "source": "IMD/GPM",
+          "unit": "mm"
+        },
+        {
+          "feature": "rain_3h",
+          "importance": 0.1438,
+          "source": "IMD/GPM",
+          "unit": "mm"
+        },
+        {
+          "feature": "susceptibility",
+          "importance": 0.1403,
+          "source": "GSI Landslide Atlas",
+          "unit": "index"
+        },
+        {
+          "feature": "relative_relief",
+          "importance": 0.133,
+          "source": "Bhuvan/SRTM DEM",
+          "unit": "m"
+        },
+        {
+          "feature": "soil_saturation_index",
+          "importance": 0.116,
+          "source": "SMAP/MOSDAC/In-situ",
+          "unit": "fraction"
+        }
+      ],
+      "card": {
+        "calibration_summary": {
+          "method": "platt_sigmoid",
+          "test_brier": 0.2296,
+          "test_ece": 0.0372,
+          "val_brier_after": 0.2349,
+          "val_brier_before": 0.2617,
+          "val_ece": 0.0348
+        },
+        "class_balance": 0.4875,
+        "config": {
+          "learning_rate": 0.3,
+          "max_depth": 3,
+          "n_estimators": 60,
+          "recall_beta": 2.0,
+          "seed": 42,
+          "use_class_weight": true
+        },
+        "data_source": "SIMULATED",
+        "data_version": "sim-v1",
+        "disclaimer": "Trained on DETERMINISTIC SIMULATED data to demonstrate and prove the AI pipeline architecture. NOT scientifically validated; not trained on verified real government event/non-event censuses. Metrics are held-out on simulated data and describe pipeline generalization only.",
+        "final_train_logloss": 0.3038,
+        "historical_data_inspection": {
+          "catalogs_present": [
+            "NRSC/ISRO Landslide Atlas of India (1998-2022)",
+            "NRSC Flood Hazard Zonation",
+            "Bhuvan Historical Flood Inundation Service",
+            "NDEM Historical Disaster Records"
+          ],
+          "historical_labels_available": false,
+          "is_demo": true,
+          "model_status": "NOT VALIDATED",
+          "pipeline_action": "USE_DETERMINISTIC_SIMULATED_DATASET",
+          "reason": "Verified catalogs are CATALOG-ONLY reference inventories. They record positive event occurrences but lack nationwide confirmed non-event observation coverage. Unobserved locations must not be falsely converted into negative training samples (-1 != 0). Real operational model validation is deferred until exhaustive observational censuses are integrated."
+        },
+        "imbalance_handling": "class_weight_balanced",
+        "is_demo": true,
+        "is_synthetic": true,
+        "model_name": "landslide_model",
+        "model_version": "landslide-gbt-c7182575b8fb7bc5-20260906183022",
+        "n_samples": 1200,
+        "n_test": 240,
+        "n_train": 720,
+        "n_val": 240,
+        "split_strategy": "temporal_block_split (Train: 60%, Val: 20%, Test: 20%)",
+        "status": "NOT VALIDATED",
+        "test_metrics": {
+          "accuracy": 0.5958,
+          "auc": 0.6603,
+          "brier": 0.2296,
+          "calibration_error": 0.0372,
+          "confusion": {
+            "fn": 21,
+            "fp": 76,
+            "tn": 53,
+            "tp": 90
+          },
+          "f1": 0.6498,
+          "f2": 0.7377,
+          "n": 240,
+          "negatives": 129,
+          "positives": 111,
+          "pr_auc": 0.614,
+          "precision": 0.5422,
+          "recall": 0.8108,
+          "specificity": 0.4109,
+          "threshold": 0.4
+        },
+        "trained_at": "2026-09-06T18:30:22Z",
+        "validated": false,
+        "validation_metrics": {
+          "accuracy": 0.5542,
+          "auc": 0.6424,
+          "brier": 0.2349,
+          "calibration_error": 0.0348,
+          "confusion": {
+            "fn": 23,
+            "fp": 84,
+            "tn": 44,
+            "tp": 89
+          },
+          "f1": 0.6246,
+          "f2": 0.7166,
+          "n": 240,
+          "negatives": 128,
+          "positives": 112,
+          "pr_auc": 0.6046,
+          "precision": 0.5145,
+          "recall": 0.7946,
+          "specificity": 0.3438,
+          "threshold": 0.4
+        }
+      }
+    }
+  }
+}

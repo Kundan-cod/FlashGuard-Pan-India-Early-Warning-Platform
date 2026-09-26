@@ -50,26 +50,34 @@ sources:
     variable: precipitation
     why: "Rainfall intensity, cumulative rainfall, short-term precip features, NRT precip."
     realtime_class: near_real_time        # structural: satellite => NRT (has latency)
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED   # e.g. 30-min / 3-hr / daily accumulations
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
-    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
+    # Verified by ChatGPT against NASA's official docs (see
+    # app/data_layer/docs/gpm_verified.md). The PMM Publisher OpenSearch endpoint
+    # is a dataset-DISCOVERY interface: it returns dataset metadata + download
+    # action URLs, NOT numeric rainfall. A real mm value only exists after the
+    # optional raster-sampling stage downloads and samples the product.
+    official_url: "https://gpm.nasa.gov/precip-apps/doc"
+    api_url: "https://cmr.earthdata.nasa.gov/search/granules.umm_json"
+    docs_url: "https://gpm.nasa.gov/precip-apps/doc"
+    provider: "GES_DISC"
+    short_name: "GPM_3IMERGHHL"
+    version: "07"
+    products: "GPM_3IMERGHHL"
+    spatial_resolution: "~0.1 degree (~10 km)"
+    temporal_resolution: "half-hourly (30-minute rate mm/hr)"
+    latency: "IMERG Late ~14 h"
+    update_frequency: "half-hourly"
+    data_format: "CMR UMM-JSON discovery -> GES DISC HDF5 product (Grid/precipitation)"
+    coverage: "global (includes India)"
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED   # not documented in verified spec; treat cautiously
+    license: "NASA open data"
+    authentication_required: true                 # Earthdata token for product downloads
     auth_env_var: NASA_EARTHDATA_TOKEN
     collector: gpm_collector
-    fallback: imd                          # if GPM down, IMD rainfall is candidate fallback
-    verified: false
-    verified_on: null
-    access_status: unknown
-    enabled: false
+    fallback: imd                          # if GPM down/not configured, IMD rainfall is candidate fallback
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
+    enabled: true
 
   imd:
     name: India Meteorological Department
@@ -77,25 +85,39 @@ sources:
     variable: weather_rainfall_warnings
     why: "Current weather, district rainfall, AWS obs, nowcast, forecasts, warnings."
     realtime_class: real_time
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    # Verified by ChatGPT against the official IMD portal + API reference (see
+    # app/data_layer/sources/imd/docs/imd_verified.md). UNLIKE GPM/SMAP, IMD
+    # returns REAL numeric weather/rainfall/warnings — but at DISTRICT/STATION
+    # granularity WITHOUT coordinates. It therefore lands in imd_observations
+    # (its own table), NEVER rainfall_observations, so a district figure can
+    # never masquerade as a village-level value. Warning codes/colors are kept
+    # verbatim and NEVER converted to an ML probability.
+    official_url: "https://api.imd.gov.in/public/index.php"
+    api_url: "https://api.imd.gov.in/api/v1"
+    docs_url: "https://api.imd.gov.in/public/api_reference.html"
+    products: "current_wx, districtnowcast, districtrainfall, districtwarning, stationnowcast, staterainfall"
+    spatial_resolution: "station / district (no point coordinates in the API)"
     temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
     latency: EXTERNAL_VERIFICATION_REQUIRED
     update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: "JSON"
+    coverage: "India (states / districts / IMD stations)"
     rate_limits: EXTERNAL_VERIFICATION_REQUIRED
     license: EXTERNAL_VERIFICATION_REQUIRED
+    # Registration requires an official organizational email; credential
+    # transport is left configurable (the vendored collector never invents a
+    # header contract). auth_env_var matches the vendored config.py, which reads
+    # IMD_API_TOKEN. Set to null if operating against public endpoints.
     authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: IMD_API_KEY
+    auth_env_var: IMD_API_TOKEN
     collector: imd_collector
     fallback: gpm
-    verified: false
-    verified_on: null
-    access_status: unknown
+    verified: true
+    verified_on: "2026-09-06"
+    # green: verified + programmatically usable JSON endpoints. Kept disabled by
+    # default so the app stays on replay until an operator explicitly enables it
+    # in an environment with a usable IMD account/token.
+    access_status: green
     enabled: false
 
   smap:
@@ -103,161 +125,276 @@ sources:
     category: satellite
     variable: soil_moisture
     why: "Surface + root-zone soil moisture, soil saturation features."
-    realtime_class: near_real_time
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
-    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: NASA_EARTHDATA_TOKEN
+    realtime_class: near_real_time        # SMAP L4 is NRT (3-hourly + processing latency); no zero-latency LIVE SMAP
+    # Verified by ChatGPT against NSIDC/NASA docs (see
+    # app/data_layer/sources/smap/docs/smap_verified.md). NASA CMR granule search
+    # is a granule-DISCOVERY interface: it returns granule metadata + documented
+    # GET DATA URLs, NOT numeric soil-moisture. A real m3/m3 value only exists
+    # after a separate HDF5/NetCDF parse stage reads the scientific product and
+    # maps documented variables/quality flags. That parser is NOT in the verified
+    # package, so SMAP is discovery-only here (surface_sm/rootzone_sm stay NULL).
+    official_url: "https://nsidc.org/data/spl4smau/versions/8"
+    api_url: "https://cmr.earthdata.nasa.gov/search"
+    docs_url: "https://nsidc.org/data/spl4smau/versions/8"
+    products: "SPL4SMAU V008 (Analysis Update), SPL4SMGP V008 (Geophysical), SPL4SMLM V008 (Land Model Constants)"
+    spatial_resolution: "9 km EASE-Grid v2 (global gridded)"
+    temporal_resolution: "3-hourly (L4 SMAU/SMGP)"
+    latency: EXTERNAL_VERIFICATION_REQUIRED   # verified spec does not state a numeric NRT latency; treat cautiously
+    update_frequency: "sub-daily (per L4 assimilation cycle)"
+    data_format: "CMR granule search (JSON/UMM) -> HDF5 product download URLs"
+    coverage: "global (includes India)"
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED   # not documented in verified spec; treat cautiously
+    license: "NASA open data; protected product downloads need NASA Earthdata Login"
+    authentication_required: true                 # Earthdata token for protected product downloads
+    # NOTE: the vendored verified package (sih_smap/config.py) reads EARTHDATA_TOKEN.
+    # We keep auth_env_var identical so the NOT_CONFIGURED gate and the actual
+    # download auth check the SAME variable (no divergence).
+    auth_env_var: EARTHDATA_TOKEN
     collector: smap_collector
     fallback: null
-    verified: false
-    verified_on: null
-    access_status: unknown
-    enabled: false
+    verified: true
+    verified_on: "2026-09-06"
+    # yellow: verified + programmatically usable (CMR discovery is often anonymous),
+    # but protected product downloads need an Earthdata registration/token, and no
+    # verified HDF5 parser exists yet -> discovery-only.
+    access_status: yellow
+    # Runtime-gated: even though verified, the collector reports NOT_CONFIGURED and
+    # the app stays on replay unless EARTHDATA_TOKEN is present at runtime.
+    # Flip to true only in an environment where the token is set.
+    enabled: true
 
   mosdac:
     name: ISRO MOSDAC
     category: satellite
     variable: insat_met_products
-    why: "INSAT meteorological products, rainfall/cloud products."
+    why: "INSAT meteorological products, satellite precipitation (Hydro-Estimator / IMR / GPI)."
     realtime_class: near_real_time
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
-    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: MOSDAC_API_KEY
+    # Verified 2026-09-06 from the vendored MOSDAC package
+    # (app/data_layer/sources/mosdac/docs/mosdac_verified.md). The verified note
+    # is explicit: "Do not invent a public REST endpoint from the website." The
+    # official mdapi/config workflow is the source contract, so no stable public
+    # URL is hard-coded here — the operator supplies MOSDAC_API_BASE_URL. Until
+    # then the collector reports NOT_CONFIGURED (honest), never fabricates one.
+    official_url: https://mosdac.gov.in
+    api_url: https://mosdac.gov.in
+    docs_url: MOSDAC Data Download API manual (reviewed 2026-09-04)
+    # Verified precipitation datasetIds (registry.py MOSDAC_DATASETS).
+    products: "3RIMG_L2B_HEM (INSAT-3DR Hydro-Estimator, half-hourly, HDF/GeoTIFF); 3SIMG_L2G_IMR (INSAT-3DS IMR 0.25deg); 3SIMG_L2G_GPI (INSAT-3DS GPI 0.5deg); 3SIMG_L3B_HEM (INSAT-3DS daily Hydro-Estimator)"
+    spatial_resolution: "product-defined (per-pixel geolocation to 0.25-0.5 deg grids)"
+    temporal_resolution: "half-hourly to daily (product-defined)"
+    latency: near_real_time
+    update_frequency: "half-hourly (3RIMG_L2B_HEM) to daily (3SIMG_L3B_HEM)"
+    data_format: "HDF and GeoTIFF"
+    coverage: "India region"
+    rate_limits: "documented download quota 5000 files/user/day (download stage only)"
+    license: "MOSDAC account required for downloads; search is anonymous"
+    # Search is anonymous; USERNAME/PASSWORD are required only for the
+    # (unimplemented) download stage. The configuration gate the collector uses
+    # is the presence of MOSDAC_API_BASE_URL — declared here so the boot probe
+    # and verify script agree on what "configured" means.
+    authentication_required: "downloads only (search anonymous)"
+    auth_env_var: MOSDAC_API_BASE_URL
     collector: mosdac_collector
     fallback: gpm
-    verified: false
-    verified_on: null
-    access_status: unknown
-    enabled: false
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
+    enabled: true
 
   bhuvan:
     name: Bhuvan / NRSC (DEM & terrain)
     category: terrain_static
     variable: elevation_terrain
-    why: "DEM (CartoDEM or other), from which slope/aspect/curvature/flow are derived. Preprocess once, store."
+    why: "DEM (CartoDEM 30m) + thematic context (LULC, geomorphology, lineament, historical flood-hazard/annual) as OGC WMS/WMTS. Quantitative terrain (slope/aspect/curvature/flow) must be derived from downloaded DEM tiles and preprocessed once, NOT scraped from rendered map pixels. This collector is CATALOG-ONLY: it records verified layer endpoints; a gated DEM-tile processing stage (future work) is what would populate terrain_features."
     realtime_class: static
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    official_url: https://bhuvan.nrsc.gov.in
+    # OGC endpoints are the real, verified public Bhuvan services. There is no
+    # single "api_url" — the layers are consumed as OGC WMS/WMTS (see registry).
+    api_url: "OGC WMS/WMTS (see wms_url/wmts_url)"
+    wms_url: https://bhuvan-vec2.nrsc.gov.in/bhuvan/wms
+    wmts_url: https://bhuvan-vec2.nrsc.gov.in/bhuvan/gwc/service/wmts
+    docs_url: https://bhuvan.nrsc.gov.in/wms/wms_intro.php
+    products: "CartoDEM (30m, 1deg x 1deg tiles); LULC 50k; geomorphology; lineament; flood hazard zonation; flood annual layers (OGC WMS/WMTS)"
+    spatial_resolution: "CartoDEM 30m; thematic vector/raster layers at documented scales (50k etc)"
     temporal_resolution: static
     latency: not_applicable
     update_frequency: static_periodic
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    data_format: "OGC WMS/WMTS services; CartoDEM downloadable tiles (GeoTIFF)"
+    coverage: India (pan-India)
     rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: BHUVAN_API_KEY
+    license: "NRSC/ISRO Bhuvan terms (public OGC services)"
+    # Cataloging the verified public OGC endpoints needs NO credentials. The
+    # optional CartoDEM tile DOWNLOAD stage (not implemented) may require a
+    # Bhuvan login; that gate is out of scope for the catalog-only collector.
+    authentication_required: false
+    auth_env_var: null
     collector: terrain_loader
     fallback: null
-    verified: false
-    verified_on: null
-    access_status: unknown
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
     enabled: false
 
   gsi:
     name: GSI / Bhusanket (landslide)
     category: geohazard
     variable: landslide_susceptibility_forecast
-    why: "Landslide inventory, susceptibility, forecast/impact probability, geo-hazard info."
+    why: "Landslide inventory, susceptibility, forecast/impact probability, geo-hazard info from GSI's National Landslide Forecasting Centre (Bhusanket portal). This collector is CATALOG-ONLY: it records verified portal layer endpoints + roles + regional COVERAGE notes; it NEVER produces a numeric susceptibility/probability. GSI forecasting is REGIONAL (Darjeeling/Kalimpong/Nilgiris operational, others experimental), NOT a nationwide real-time API, so the app must mark GSI unavailable outside its coverage rather than fabricate a forecast. A gated, verified parse of a specific documented public resource (future work) is what would populate landslide_data."
     realtime_class: static_periodic
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    official_url: https://bhusanket.gsi.gov.in
+    # The verified adapter "intentionally does not hard-code an undocumented JSON
+    # API." The public Bhusanket portal is the verified entry point; specific
+    # resources are discovered from it (future gated parse), never invented.
+    api_url: "Bhusanket portal (see official_url) — no documented JSON API"
+    docs_url: https://bhusanket.gsi.gov.in
+    products: "Landslide Forecast Bulletin; LSM 10K susceptibility maps; Impact Probability Map; field-validated landslide inventory; state susceptibility reports (portal layers)"
+    spatial_resolution: "LSM at 1:10,000 (10K) for operational regions; inventory point-based"
+    temporal_resolution: "forecast bulletin issued during monsoon for operational regions"
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: "web portal layers / bulletins (no documented machine API)"
+    coverage: "REGIONAL — Darjeeling/Kalimpong & Nilgiris operational; other states experimental. NOT nationwide real-time."
     rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: GSI_API_KEY
+    license: "GSI/NLFC public portal terms"
+    # Cataloging the verified public portal needs NO credentials. Any future gated
+    # parse of a specific documented resource is out of scope for this catalog.
+    authentication_required: false
+    auth_env_var: null
     collector: gsi_collector
     fallback: null
-    verified: false
-    verified_on: null
-    access_status: unknown
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
     enabled: false
 
   cwc:
     name: CWC / NWIC (hydrology)
     category: government_hydrology
     variable: river_level_flow_forecast
-    why: "River water level, station obs, inflow/outflow, flood forecasts, historical flood info."
-    realtime_class: real_time
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
+    why: "River water level, telemetry rainfall at hydrological stations, reservoir storage context, flood-forecast benchmarking from CWC via the National Water Data Portal (NWDP/NWIC). This collector is CATALOG-ONLY: it records verified NWDP dataset-page URLs + roles + advertised formats/cadence; it NEVER produces a numeric water-level/rainfall value. The verified adapter 'intentionally does not invent an undocumented API URL' — the portal advertises API as a format but the exact API endpoint/auth contract was NOT verified, and we must not claim every station is live or every API anonymous. A gated, verified CSV/API parse of a specific dataset resource (future work) is what would populate river_observations/rainfall_observations."
+    realtime_class: static_periodic
+    official_url: https://www.nwdp.nwic.gov.in
+    # The verified adapter does NOT hard-code an undocumented API URL. The public
+    # NWDP dataset pages are the verified entry point; CSV/API resource links are
+    # discovered from them (future gated parse), never invented.
+    api_url: "NWDP dataset pages (see official_url) — API advertised but endpoint/auth NOT verified"
+    docs_url: https://www.nwdp.nwic.gov.in
+    products: "CWC River Water Level (telemetry hourly); CWC Rainfall (telemetry hourly); Reservoir Water Storage/Level (manual daily) — NWDP dataset pages"
+    spatial_resolution: "telemetry station point observations (no gridded resolution)"
+    temporal_resolution: "hourly (telemetry); daily/manual (reservoir)"
     latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
+    update_frequency: "hourly telemetry; daily/manual reservoir"
+    data_format: "CSV / API (as advertised on NWDP dataset pages)"
+    coverage: "India — major river systems (Subernarekha, Mahanadi, Godavari, Krishna, Pennar, Cauvery, Tapi, Narmada, Mahi, Sabarmati, etc.); NOT every station guaranteed live"
     rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: CWC_API_KEY
+    license: "CWC/NWIC NWDP public data portal terms"
+    # Cataloging the verified public NWDP dataset pages needs NO credentials. Any
+    # future authenticated/live CSV/API parse is out of scope for this catalog.
+    authentication_required: false
+    auth_env_var: null
     collector: cwc_collector
     fallback: null
-    verified: false
-    verified_on: null
-    access_status: unknown
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
+    enabled: false
+
+  lgd:
+    name: LGD (Local Government Directory)
+    category: government_administrative
+    variable: administrative_identity_codes
+    why: "Authoritative administrative identity + codes for the India -> State/UT -> District -> Sub-district -> Development Block -> Village/ULB -> Ward hierarchy, used as stable join keys to attach risk to village/ward polygons. This collector is CATALOG-ONLY: it records the verified LGD download-portal directory DATASETS (one per admin level) + their level + purpose; it produces NO administrative-unit rows and NO geometry. The verified adapter warns: 'Do not assume LGD directory tables are themselves polygon datasets. Boundary geometry must be sourced from an authoritative GIS boundary product and versioned separately ... joined using LGD codes.' and 'Use LGD codes as stable join keys. Names are display fields only.' A gated, verified directory-file parse (future work) is what would populate a separate administrative table."
+    realtime_class: static_periodic
+    official_url: https://lgdirectory.gov.in/demo/downloadDirectory.do
+    # The verified adapter fetches only the directory download page and 'does not
+    # guess file names or fabricate geometry URLs'. There is no undocumented API.
+    api_url: "LGD download portal (see official_url) — directory downloads, no documented API"
+    docs_url: https://lgdirectory.gov.in
+    products: "Directories: Districts; Sub-districts; Development Blocks; Villages; PRI Local Bodies; Urban Local Bodies; Wards"
+    spatial_resolution: "administrative codes + hierarchy (NOT geometry — geometry joined from an authoritative GIS product by LGD code)"
+    temporal_resolution: "static/periodic (administrative boundaries + names change over time; store source_version + effective_date)"
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: "downloadable directories (portal-driven)"
+    coverage: "India — all States/UTs (authoritative national administrative directory)"
+    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
+    license: "Government of India LGD public directory terms"
+    # Cataloging the verified public LGD download portal needs NO credentials.
+    authentication_required: false
+    auth_env_var: null
+    collector: lgd_collector
+    fallback: null
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
+    enabled: false
+
+  historical:
+    name: Historical flood / landslide training-label sources
+    category: historical_labels
+    variable: historical_event_label_sources
+    why: "Verified official sources of historical flood/landslide events for model training + replay validation: NRSC/ISRO Landslide Atlas (~80,000 landslides mapped 1998-2022 across 17 states + 2 UTs), NRSC flood-hazard zonation, Bhuvan historical flood-inundation service (1998-2019 maximum-inundation layers), and NDEM historical disaster data (1999-present, portal/auth dependent). This collector is CATALOG-ONLY: it records the verified SOURCES (hazard + period + role + access) ONLY; it produces NO event geometry, NO event time and NO training label. The verified note is explicit: these are AUTHORITATIVE EVENT inventories, NOT complete presence/absence censuses — 'Do not interpret the inventory as a complete nationwide absence/presence census' and 'Do not convert missing observations into negatives.' The labeling rule is three-state (1=confirmed event, 0=confirmed non-event only where observation coverage is demonstrably adequate, -1=unobserved/unknown) so the model never learns 'no record = no disaster'. Real events + 1/0/-1 labels enter a separate events/labels table only after a gated, verified inventory parse (future work), with negatives sampled only from areas/times with adequate observation coverage."
+    realtime_class: static_periodic
+    # The vendored package ships the source registry + the three-state labeling
+    # rule ONLY — no event rows and no inventory parser — so cataloging the verified
+    # sources is the honest boundary. Each source keeps its own official URL.
+    official_url: "https://www.nrsc.gov.in/nrscnew/resources_atlas_landslide.php (NRSC Landslide Atlas); https://www.nrsc.gov.in/nrscnew/resources_atlas_FloodHazard_Zonation.php (NRSC flood-hazard zonation); https://bhuvan-app1.nrsc.gov.in/disaster/usrtasks/flood_hz/flood_hz.php (Bhuvan flood hazard); https://ndem.nrsc.gov.in/ (NDEM)"
+    api_url: "no documented API — verified official source/reference pages only"
+    docs_url: https://www.nrsc.gov.in/
+    products: "Sources: NRSC/ISRO Landslide Atlas (landslide inventory 1998-2022); NRSC flood-hazard zonation (historical satellite-derived flood datasets); Bhuvan historical flood inundation (1998-2019 max-inundation layers); NDEM historical disasters (1999-present, portal/auth dependent)"
+    spatial_resolution: "event inventories (polygons/points per source) — NOT a gridded product; labels are joined to spatial units by a future verified parse, never fabricated here"
+    temporal_resolution: "historical (landslide atlas 1998-2022; flood inundation 1998-2019; NDEM 1999-present)"
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: "inventory datasets per source (atlas / hazard layers / portal exports)"
+    coverage: "India — landslide-prone Himalayas + Western Ghats (17 states + 2 UTs, atlas); flood-hazard/inundation historical coverage; NDEM national"
+    rate_limits: not_applicable
+    license: "Respective NRSC/ISRO/NDEM public data terms"
+    # Cataloging the verified public source references needs NO credentials.
+    # (NDEM event-level access may require portal auth, but that is a future gated
+    # parse stage — cataloging the source itself does not.)
+    authentication_required: false
+    auth_env_var: null
+    collector: historical_collector
+    fallback: null
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
     enabled: false
 
   ndem:
-    name: NDEM / NRSC (disaster aggregation)
+    name: NDEM / NRSC (National Database for Emergency Management)
     category: government_disaster
-    variable: disaster_geospatial_aggregate
-    why: "Disaster-data aggregation platform; historical flood datasets; DM geospatial services."
-    realtime_class: mixed
-    official_url: EXTERNAL_VERIFICATION_REQUIRED
-    api_url: EXTERNAL_VERIFICATION_REQUIRED
-    docs_url: EXTERNAL_VERIFICATION_REQUIRED
-    products: EXTERNAL_VERIFICATION_REQUIRED
-    spatial_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    temporal_resolution: EXTERNAL_VERIFICATION_REQUIRED
-    latency: EXTERNAL_VERIFICATION_REQUIRED
-    update_frequency: EXTERNAL_VERIFICATION_REQUIRED
-    data_format: EXTERNAL_VERIFICATION_REQUIRED
-    coverage: EXTERNAL_VERIFICATION_REQUIRED
-    rate_limits: EXTERNAL_VERIFICATION_REQUIRED
-    license: EXTERNAL_VERIFICATION_REQUIRED
-    authentication_required: EXTERNAL_VERIFICATION_REQUIRED
-    auth_env_var: NDEM_API_KEY
+    variable: disaster_geospatial_capabilities
+    why: "NDEM is an NRSC/ISRO national GIS repository + decision-support system for disaster management, run with MHA for near-real-time disaster support (near-real-time flood monitoring, flood early warning/vulnerability, landslide hazard inventory, district nowcast aggregation, historical flood reference). This collector is CATALOG-ONLY: it records the verified NDEM CAPABILITIES (name + access level + role + the verified public portal URL) ONLY; it produces NO measurement, NO geometry, NO event and NO risk score. The verified note is explicit that NDEM's non-base products are PROTECTED — the portal requires a username/password obtained through an authorization form, and authorized users are Central/State/District/NDRF/SDRF officials; only public/base layers may be visible without login. So this connector must 'never bypass authentication or invent an undocumented API' and must 'store access_level and source-health separately from risk score.' Each capability's access level (PUBLIC | AUTHORIZED | AUTHORIZED_OR_PRODUCT_SPECIFIC) is cataloged verbatim as metadata, never folded into a data value. Real NDEM products would enter observation/event tables only after a future AUTHORIZED, gated adapter behind the same interface (a stage the verified package deliberately does NOT implement)."
+    realtime_class: static_periodic
+    # The vendored package implements PUBLIC-portal discovery + a capability/access
+    # registry ONLY — no private endpoints and no product parser — so cataloging the
+    # verified public capabilities is the honest boundary. Every capability is exposed
+    # through the SAME public portal URL, so capability_key keeps rows distinct.
+    official_url: "https://ndem.nrsc.gov.in"
+    api_url: "no documented public API — protected portal (authorized officials only); no private endpoint invented"
+    docs_url: https://www.nrsc.gov.in/
+    products: "Capabilities: public base/context layers (PUBLIC); near-real-time flood products, flood depth/inundation support, CWC water-level support, district nowcast aggregation (AUTHORIZED); historical flood reference, landslide hazard/inventory reference (AUTHORIZED_OR_PRODUCT_SPECIFIC)"
+    spatial_resolution: "GIS repository — NOT a gridded product cataloged here; capability metadata only, no geometry fabricated"
+    temporal_resolution: "mixed (near-real-time flood/cyclone monitoring for authorized users; historical disaster reference 1999-present)"
+    latency: not_applicable
+    update_frequency: static_periodic
+    data_format: "protected GIS/DSS portal (public base layers visible without login)"
+    coverage: "India — national disaster-management repository"
+    rate_limits: not_applicable
+    license: "NRSC/NDEM public data terms; protected products require official authorization"
+    # Cataloging the verified PUBLIC capability list needs NO credentials. NDEM's
+    # protected products require portal auth (NDEM_USERNAME/NDEM_PASSWORD) but that is
+    # a FUTURE gated authorized adapter — cataloging the capability metadata does not
+    # authenticate and never bypasses authentication.
+    authentication_required: false
+    auth_env_var: null
     collector: ndem_collector
     fallback: null
-    verified: false
-    verified_on: null
-    access_status: unknown
+    verified: true
+    verified_on: "2026-09-06"
+    access_status: green
     enabled: false
 
   historical_floods:
@@ -368,3 +505,31 @@ sources:
     access_status: green
     enabled: true
     note: "Demo uses a clearly-labelled SIMULATED sensor stream (master prompt sections 30, 67)."
+
+  thingspeak:
+    name: ThingSpeak Public IoT Channel 3368421
+    category: EXTERNAL_PUBLIC_IOT
+    variable: external_iot_stream
+    why: "Third-party public environmental IoT monitor (ESP32 ultrasonic, soil ADC, rain ADC, tilt). Enhancement layer from open science network; NOT FlashGuard infrastructure, NOT government deployed."
+    realtime_class: external_public_iot
+    official_url: https://thingspeak.mathworks.com/channels/3368421
+    api_url: https://api.thingspeak.com/channels/3368421/feeds.json
+    docs_url: https://thingspeak.mathworks.com/channels/3368421
+    products: "water_level_cm, soil_moisture_adc, rain_intensity_adc, tilt_deg, status"
+    spatial_resolution: point
+    temporal_resolution: seconds_to_minutes
+    latency: variable
+    update_frequency: periodic
+    data_format: json
+    coverage: "Public IoT sensor node (unconfigured coordinates in feed)"
+    rate_limits: "ThingSpeak public rate limit (~15s per update)"
+    license: "Public Domain / MathWorks ThingSpeak Terms"
+    authentication_required: false
+    auth_env_var: null
+    collector: thingspeak_adapter
+    fallback: null
+    verified: true
+    verified_on: "2026-09-08"
+    access_status: green
+    enabled: true
+    note: "Treated strictly as EXTERNAL_PUBLIC_IOT. Water level (cm) mapped to metres; raw ADC fields 2 & 3 preserved in raw telemetry and NOT mapped to ML features due to absence of dielectric/pulse calibration curves. Unconfigured coordinates set to NULL geometry."

@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=none
+# Track B — OPTIONAL ML/raster overlay (SIH 2026 PS 26192)
+# =============================================================================
+# Use this OVERLAY on top of docker-compose.yml to run the backend from the
+# heavy rasterio-enabled image (backend.ml.Dockerfile) instead of the default
+# minimal image. This is what turns the gated GPM raster-sampling stage ON, so a
+# real scientific GPM product can be downloaded, parsed and sampled into REAL
+# numeric rainfall (mm).
+#
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.ml.yml \
+#       up -d --build backend
+#
+# Everything else (db, redis, frontend, env_file, DATABASE_URL, boot command)
+# is inherited unchanged from docker-compose.yml. Omit this overlay to return to
+# the known-good minimal replay image — nothing about the default path changes.
+#
+# Requirements for real numeric mm to actually appear (all honest gates):
+#   * NASA_EARTHDATA_TOKEN set in ../.env         (credential; else NOT_CONFIGURED)
+#   * the discovered PMM product is a scientific   (else is_scientific_raster
+#     GeoTIFF/NetCDF, not a browse PNG              refuses -> discovery-only)
+#   * GPM_ENABLE_RASTER=1 (default on)             (permits the gated stage)
+# =============================================================================
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.ml.Dockerfile
+    environment:
+      # Permit the gated raster stage. The collector STILL only samples a real
+      # scientific raster; this flag just does not disable the stage. Set to 0
+      # to force discovery-only even on the ML image.
+      GPM_ENABLE_RASTER: ${GPM_ENABLE_RASTER:-1}

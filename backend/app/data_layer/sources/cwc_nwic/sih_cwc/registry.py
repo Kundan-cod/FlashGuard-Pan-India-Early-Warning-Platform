@@ -1,0 +1,20 @@
+CWC_NWIC_DATASETS={
+    "river_water_level_telemetry_hourly":{
+        "path":"/en/dataset/river-water-level-telemetry-hourly-central-water-commission-cwc",
+        "role":"real_time_hydrological_observation",
+        "frequency":"hourly",
+        "format":"CSV/API",
+    },
+    "rainfall_telemetry_hourly":{
+        "path":"/en/dataset/rainfall-cwc-telemetry-hourly",
+        "role":"hydrological_rainfall_observation",
+        "frequency":"hourly",
+        "format":"CSV/API",
+    },
+    "reservoir_water_storage_manual_daily":{
+        "path":"/en/dataset/reservoir-water-level-manual-daily-centre-water-commission_cwc",
+        "role":"reservoir_context",
+        "frequency":"daily/manual",
+        "format":"CSV/API",
+    },
+}

@@ -1,0 +1,11 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm --prefix frontend/production run build",
+  "outputDirectory": "frontend/production/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

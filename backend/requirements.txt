@@ -1,0 +1,49 @@
+# =============================================================================
+# Track B (production) — RUNTIME dependencies for the demo boot path.
+# SIH 2026 PS 26192.
+#
+# Track A (portable core) uses ONLY the Python stdlib and needs NONE of these.
+#
+# This file is intentionally MINIMAL: it contains exactly what the running
+# service imports today (FastAPI API + SQLAlchemy/PostGIS DAL + Alembic
+# migrations + replay/seed). It installs quickly and reliably in Docker because
+# every package here ships manylinux wheels — no source builds, no GDAL/GEOS
+# toolchain required for `docker compose up` to succeed.
+#
+# The heavy geospatial-IO + ML stack (rasterio, geopandas, xgboost, lightgbm,
+# scikit-learn, ...) is deferred to requirements-ml.txt. NONE of those are
+# imported by app/ yet (verified); they belong to Phase 2 when the demo scorers
+# are replaced with trained models and real DEM/raster preprocessing is added.
+#
+# Pinned for reproducibility. Install locally with:
+#   pip install -r backend/requirements.txt
+# =============================================================================
+
+# --- Web / API ---
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+python-multipart==0.0.9
+
+# --- Database / spatial ORM (psycopg2-binary ships libpq; no build needed) ---
+SQLAlchemy==2.0.31
+GeoAlchemy2==0.15.2
+psycopg2-binary==2.9.9
+alembic==1.13.2
+
+# --- Cache / task queue (structural; client only, no build) ---
+redis==5.0.7
+
+# --- HTTP clients for collectors (verified sources only) ---
+httpx==0.27.0
+requests==2.32.3
+PyYAML==6.0.1
+
+# --- Testing / Numerics ---
+numpy==1.26.4
+h5py==3.11.0
+pytest==8.2.2
+pytest-asyncio==0.23.7
+respx==0.21.1
+
