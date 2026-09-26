@@ -4,6 +4,7 @@
   "private": true,
   "description": "FlashGuard — Pan-India Flash Flood & Landslide Early Warning System (SIH 2026 PS 26192)",
   "scripts": {
+    "postinstall": "npm --prefix frontend/production install",
     "dev": "npm --prefix frontend/production run dev",
     "build": "npm --prefix frontend/production run build",
     "preview": "npm --prefix frontend/production run preview",

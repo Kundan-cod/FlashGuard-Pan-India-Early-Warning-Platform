@@ -1,5 +1,6 @@
 {
   "framework": "vite",
+  "installCommand": "npm --prefix frontend/production install",
   "buildCommand": "npm --prefix frontend/production run build",
   "outputDirectory": "frontend/production/dist",
   "rewrites": [
