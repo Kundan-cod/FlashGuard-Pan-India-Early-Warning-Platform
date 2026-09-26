@@ -1,0 +1,7 @@
+{
+  "name": "flashguard-nested-helper",
+  "private": true,
+  "scripts": {
+    "build": "node ../../build-helper.cjs"
+  }
+}
